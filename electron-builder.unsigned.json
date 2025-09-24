@@ -1,0 +1,13 @@
+{
+  "extends": "./electron-builder.json",
+  "mac": {
+    "identity": "-",
+    "hardenedRuntime": false,
+    "gatekeeperAssess": false,
+    "extendInfo": {
+      "LSFileQuarantineEnabled": false
+    }
+  }
+}
+
+

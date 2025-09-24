@@ -2,9 +2,13 @@
 // Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import type {BuildConfig} from 'types/config';
+import type { BuildConfig } from "types/config";
 
-import {DEFAULT_ACADEMY_LINK, DEFAULT_HELP_LINK, DEFAULT_UPGRADE_LINK} from '../../common/constants';
+import {
+  DEFAULT_ACADEMY_LINK,
+  DEFAULT_HELP_LINK,
+  DEFAULT_UPGRADE_LINK,
+} from "../../common/constants";
 
 // For detailed guides, please refer to https://docs.mattermost.com/deployment/desktop-app-deployment.html
 
@@ -23,24 +27,19 @@ import {DEFAULT_ACADEMY_LINK, DEFAULT_HELP_LINK, DEFAULT_UPGRADE_LINK} from '../
  * @prop {[]} allowedProtocols - Defines which protocols should be automatically allowed
  */
 const buildConfig: BuildConfig = {
-    defaultServers: [/*
+  defaultServers: [
     {
-      name: 'example',
-      url: 'https://example.com'
-    }
-  */],
-    helpLink: DEFAULT_HELP_LINK,
-    academyLink: DEFAULT_ACADEMY_LINK,
-    upgradeLink: DEFAULT_UPGRADE_LINK,
-    enableServerManagement: true,
-    enableAutoUpdater: true,
-    managedResources: ['trusted'],
-    allowedProtocols: [
-        'mattermost',
-        'ftp',
-        'mailto',
-        'tel',
-    ],
+      name: "Salely",
+      url: "https://work.foxia.vn/api",
+    },
+  ],
+  helpLink: DEFAULT_HELP_LINK,
+  academyLink: DEFAULT_ACADEMY_LINK,
+  upgradeLink: DEFAULT_UPGRADE_LINK,
+  enableServerManagement: true,
+  enableAutoUpdater: true,
+  managedResources: ["trusted"],
+  allowedProtocols: ["mattermost", "ftp", "mailto", "tel"],
 };
 
 export default buildConfig;

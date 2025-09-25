@@ -64,7 +64,7 @@ npm run build-prod
 echo "[mac-build-dist] Building signed & notarized macOS universal app (x64 + arm64)..."
 npx --yes electron-builder --mac --universal --publish=never
 
-APP_UNIVERSAL="$ROOT_DIR/release/mac-universal/Mattermost.app"
+APP_UNIVERSAL="$ROOT_DIR/release/mac-universal/FoxWork.app"
 
 echo "[mac-build-dist] Verifying signatures..."
 codesign -dv --verbose=4 "$APP_UNIVERSAL" | cat || true

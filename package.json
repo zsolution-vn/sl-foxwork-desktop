@@ -1,19 +1,15 @@
 {
-  "name": "mattermost-desktop",
-  "productName": "Mattermost",
-  "version": "6.0.0-develop.1",
-  "description": "Mattermost",
+  "name": "foxwork-desktop",
+  "productName": "FoxWork",
+  "version": "0.0.1",
+  "description": "FoxWork",
   "main": "dist/index.js",
-  "author": "Mattermost, Inc. <feedback@mattermost.com>",
+  "author": "Foxia Team <locflute@gmail.com>",
   "license": "Apache-2.0",
-  "desktopName": "Mattermost.Desktop",
-  "homepage": "https://mattermost.com",
+  "desktopName": "FoxWork",
+  "homepage": "https://foxia.vn",
   "engines": {
     "node": ">=18.0.0"
-  },
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/mattermost/desktop.git"
   },
   "scripts": {
     "postinstall": "patch-package && electron-builder install-app-deps",

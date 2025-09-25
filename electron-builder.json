@@ -5,7 +5,7 @@
     "url": "https://releases.mattermost.com/desktop"
     }
   ],
-  "appId": "Mattermost.Desktop",
+  "appId": "FoxWork.Desktop",
   "artifactName": "${version}/${name}-${version}-${os}-${arch}.${ext}",
   "directories": {
     "buildResources": "src/assets",
@@ -38,9 +38,9 @@
   ],
   "protocols": [
     {
-      "name": "Mattermost",
+      "name": "FoxWork",
       "schemes": [
-        "mattermost"
+        "foxwork"
       ]
     }
   ],
@@ -49,7 +49,7 @@
   "afterAllArtifactBuild": "scripts/afterbuild.js",
   "deb": {
     "artifactName": "${version}/${name}_${version}-1_${arch}.${ext}",
-    "synopsis": "Mattermost Desktop App",
+    "synopsis": "FoxWork Desktop App",
     "depends": [
       "libnotify4",
       "libxtst6",
@@ -110,10 +110,10 @@
     "entitlements": "./resources/mac/entitlements.mac.plist",
     "entitlementsInherit": "./resources/mac/entitlements.mac.inherit.plist",
     "extendInfo": {
-      "NSMicrophoneUsageDescription": "Microphone access may be used by Mattermost plugins, such as Jitsi video conferencing.",
-      "NSCameraUsageDescription": "Camera access may be used by Mattermost plugins, such as Jitsi video conferencing.",
-      "NSFocusStatusUsageDescription": "Focus status is used by Mattermost to determine whether to send notifications or not.",
-      "LSFileQuarantineEnabled": true
+    "NSMicrophoneUsageDescription": "FoxWork cần sử dụng micro cho các plugin như Jitsi để họp trực tuyến.",
+    "NSCameraUsageDescription": "FoxWork cần sử dụng camera cho các plugin như Jitsi để họp trực tuyến.",
+    "NSFocusStatusUsageDescription": "FoxWork sử dụng trạng thái Tập trung của bạn để quyết định có gửi thông báo hay không.",
+    "LSFileQuarantineEnabled": true
     }
   },
   "mas": {
@@ -174,7 +174,7 @@
       }
     ],
     "signDlls": true,
-    "publisherName": "CN=\"Mattermost, Inc.\", O=\"Mattermost, Inc.\", L=Palo Alto, S=California, C=US"
+    "publisherName": "CN=\"FoxWork Team\", O=\"FoxWork Team\", L=Palo Alto, S=California, C=US"
   },
   "nsis": {
     "artifactName": "${version}/${name}-setup-${version}-win.${ext}",

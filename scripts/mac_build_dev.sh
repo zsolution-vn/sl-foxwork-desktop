@@ -36,8 +36,8 @@ echo "[mac-build-dev] Using identity: $CSC_NAME"
 echo "[mac-build-dev] Building macOS app (x64, arm64) with electron-builder..."
 npx --yes electron-builder --mac --x64 --arm64 --publish=never
 
-APP_X64="$ROOT_DIR/release/mac/Mattermost.app"
-APP_ARM64="$ROOT_DIR/release/mac-arm64/Mattermost.app"
+APP_X64="$ROOT_DIR/release/mac/FoxWork.app"
+APP_ARM64="$ROOT_DIR/release/mac-arm64/FoxWork.app"
 
 echo "[mac-build-dev] Verifying signatures..."
 codesign -dv --verbose=4 "$APP_X64" | cat || true

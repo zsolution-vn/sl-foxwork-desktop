@@ -251,8 +251,11 @@ function initializeBeforeAppReady() {
 
     if (isDev && process.env.NODE_ENV !== 'test') {
         app.setAsDefaultProtocolClient('mattermost-dev', process.execPath, [path.resolve(process.cwd(), 'dist/')]);
+        if (mainProtocol) {
+            app.setAsDefaultProtocolClient(mainProtocol, process.execPath, [path.resolve(process.cwd(), 'dist/')]);
+        }
     } else if (mainProtocol) {
-        app.setAsDefaultProtocolClient(mainProtocol);
+        app.setAsDefaultProtocolClient(mainProtocol, process.execPath, [process.argv[1]]);
     }
 
     if (process.platform === 'darwin' || process.platform === 'win32') {
@@ -261,6 +264,7 @@ function initializeBeforeAppReady() {
 
     protocol.registerSchemesAsPrivileged([
         {scheme: 'mattermost-desktop', privileges: {standard: true}},
+        {scheme: 'foxwork', privileges: {standard: true}},
     ]);
 }
 
@@ -317,6 +321,18 @@ async function initializeAfterAppReady() {
         return net.fetch(pathToFileURL(pathToServe).toString());
     });
 
+    // Handle foxwork protocol for deep linking
+    protocol.handle('foxwork', (request: Request) => {
+        const url = parseURL(request.url);
+        if (!url) {
+            return new Response('bad', {status: 400});
+        }
+
+        // For foxwork protocol, we don't serve files, just handle deep linking
+        // The actual deep link handling is done in app event listeners
+        return new Response('OK', {status: 200});
+    });
+
     // Initialize secure storage after app is ready
     try {
         await secureStorage.init();
@@ -363,7 +379,7 @@ async function initializeAfterAppReady() {
             callback({
                 responseHeaders: {
                     ...details.responseHeaders,
-                    'Content-Security-Policy': [`default-src 'self'; style-src 'self' 'nonce-${NonceManager.create(details.url)}'; media-src data:; img-src 'self' data:`],
+                    'Content-Security-Policy': [`default-src 'self'; style-src 'self' 'nonce-${NonceManager.create(details.url)}'; media-src data:; img-src 'self' data: https://foxia.vn https://*.foxia.vn`],
                 },
             });
             return;

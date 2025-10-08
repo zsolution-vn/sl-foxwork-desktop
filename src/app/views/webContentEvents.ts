@@ -1,7 +1,7 @@
 // Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import type {WebContents, Event} from 'electron';
+import type {Event, WebContents} from 'electron';
 import {BrowserWindow, dialog, shell} from 'electron';
 
 import CallsWidgetWindow from 'app/callsWidgetWindow';
@@ -85,6 +85,35 @@ export class WebContentsEventManager {
         }
         return server.url;
     };
+    private isOAuthUrl = (serverURL: URL, inputURL: URL): boolean => {
+        const pathname = inputURL.pathname.toLowerCase();
+        const search = (inputURL.search || '').toLowerCase();
+        const full = inputURL.toString().toLowerCase();
+
+        // Common OAuth/OpenID paths
+        if (
+            pathname.includes('/oauth/') ||
+            pathname.includes('/auth/') ||
+            pathname.includes('/openid/') ||
+            pathname.includes('/sso/') ||
+            pathname.includes('/login/desktop/')
+        ) {
+            return true;
+        }
+
+        // Heuristic: many IdPs use query params even when path is generic
+        // Allow flows that include response_type/redirect_uri/scope=openid
+        if (
+            search.includes('response_type=') ||
+            search.includes('redirect_uri=') ||
+            search.includes('scope=openid') ||
+            full.includes('openid')
+        ) {
+            return true;
+        }
+
+        return false;
+    };
 
     private generateWillNavigate = (webContentsId: number) => {
         return (event: Event, url: string) => {
@@ -100,6 +129,11 @@ export class WebContentsEventManager {
             }
 
             if (serverURL && isChannelExportUrl(serverURL, parsedURL)) {
+                return;
+            }
+            if (serverURL && this.isOAuthUrl(serverURL, parsedURL)) {
+                event.preventDefault();
+                shell.openExternal(url);
                 return;
             }
 
@@ -165,7 +199,6 @@ export class WebContentsEventManager {
                 allowProtocolDialog.handleDialogEvent(parsedURL.protocol, details.url);
                 return {action: 'deny'};
             }
-
             const serverURL = this.getServerURLFromWebContentsId(webContentsId);
             if (!serverURL) {
                 shell.openExternal(details.url);
@@ -193,7 +226,7 @@ export class WebContentsEventManager {
             }
 
             if (isTeamUrl(serverURL, parsedURL, true)) {
-                NavigationManager.openLinkInNewTab(parsedURL);
+                NavigationManager.openLinkInPrimaryTab(parsedURL);
                 return {action: 'deny'};
             }
             if (isAdminUrl(serverURL, parsedURL)) {
@@ -266,7 +299,11 @@ export class WebContentsEventManager {
 
             const otherServerURL = ServerManager.lookupServerByURL(parsedURL);
             if (otherServerURL && isTeamUrl(otherServerURL.url, parsedURL, true)) {
-                NavigationManager.openLinkInNewTab(parsedURL);
+                NavigationManager.openLinkInPrimaryTab(parsedURL);
+                return {action: 'deny'};
+            }
+            if (otherServerURL && this.isOAuthUrl(otherServerURL.url, parsedURL)) {
+                shell.openExternal(details.url);
                 return {action: 'deny'};
             }
 

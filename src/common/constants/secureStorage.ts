@@ -12,6 +12,11 @@ export const SECURE_STORAGE_KEYS = {
      * Used to automatically authenticate with servers that require this secret
      */
     PREAUTH: 'preauth',
+
+    /**
+     * Persistent device identifier used for desktop login handshakes
+     */
+    DEVICE_ID: 'device_id',
 } as const;
 
 export type SecureStorageKey = typeof SECURE_STORAGE_KEYS[keyof typeof SECURE_STORAGE_KEYS];

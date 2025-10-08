@@ -1,18 +1,20 @@
 // Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
+/* eslint-disable */
 
-import classNames from 'classnames';
-import React from 'react';
+import classNames from "classnames";
+import React from "react";
 
-import LoadingBackground from './LoadingBackground';
+import LoadingBackground from "./LoadingBackground";
 
-import useTransitionEnd from '../../hooks/useTransitionEnd';
-import LoadingAnimation from '../LoadingAnimation';
+import useTransitionEnd from "../../hooks/useTransitionEnd";
+import LoadingAnimation from "../LoadingAnimation";
+import Logo from "../Logo";
 
 type Props = {
-    loading?: boolean;
-    darkMode?: boolean;
-    onFadeOutComplete?: () => void;
+  loading?: boolean;
+  darkMode?: boolean;
+  onFadeOutComplete?: () => void;
 };
 
 /**
@@ -21,59 +23,74 @@ type Props = {
  * @param {boolean} darkMode - Prop that indicates if dark mode is enabled
  * @param {() => void} onFadeOutComplete - Function to call when the loading animation is completely finished
  */
-function LoadingScreen({loading = false, darkMode = false, onFadeOutComplete = () => null}: Props) {
-    const loadingScreenRef = React.useRef(null);
+function LoadingScreen({
+  loading = false,
+  darkMode = false,
+  onFadeOutComplete = () => null,
+}: Props) {
+  const loadingScreenRef = React.useRef(null);
 
-    const [loadingIsComplete, setLoadingIsComplete] = React.useState(true);
-    const [loadAnimationIsComplete, setLoadAnimationIsComplete] = React.useState(true);
-    const [fadeOutIsComplete, setFadeOutIsComplete] = React.useState(true);
+  const [loadingIsComplete, setLoadingIsComplete] = React.useState(true);
+  const [loadAnimationIsComplete, setLoadAnimationIsComplete] =
+    React.useState(true);
+  const [fadeOutIsComplete, setFadeOutIsComplete] = React.useState(true);
 
-    React.useEffect(() => {
+  React.useEffect(() => {
     // reset internal state if loading restarts
-        if (loading) {
-            resetState();
-        } else {
-            setLoadingIsComplete(true);
-        }
-    }, [loading]);
-
-    function handleLoadAnimationComplete() {
-        setLoadAnimationIsComplete(true);
+    if (loading) {
+      resetState();
+    } else {
+      setLoadingIsComplete(true);
     }
+  }, [loading]);
 
-    useTransitionEnd<HTMLDivElement>(loadingScreenRef, React.useCallback(() => {
-        setFadeOutIsComplete(true);
-        onFadeOutComplete();
-    }, []), ['opacity']);
+  function handleLoadAnimationComplete() {
+    setLoadAnimationIsComplete(true);
+  }
 
-    function loadingInProgress() {
-        return !(loadingIsComplete && loadAnimationIsComplete && fadeOutIsComplete);
-    }
+  useTransitionEnd<HTMLDivElement>(
+    loadingScreenRef,
+    React.useCallback(() => {
+      setFadeOutIsComplete(true);
+      onFadeOutComplete();
+    }, []),
+    ["opacity"]
+  );
 
-    function resetState() {
-        setLoadingIsComplete(false);
-        setLoadAnimationIsComplete(false);
-        setFadeOutIsComplete(false);
-    }
+  function loadingInProgress() {
+    return !(loadingIsComplete && loadAnimationIsComplete && fadeOutIsComplete);
+  }
 
-    const loadingScreen = (
-        <div
-            ref={loadingScreenRef}
-            className={classNames('LoadingScreen', {
-                'LoadingScreen--darkMode': darkMode,
-                'LoadingScreen--loaded': loadingIsComplete && loadAnimationIsComplete,
-            })}
-        >
-            <LoadingBackground/>
-            <LoadingAnimation
-                loading={loading}
-                darkMode={darkMode}
-                onLoadAnimationComplete={handleLoadAnimationComplete}
-            />
+  function resetState() {
+    setLoadingIsComplete(false);
+    setLoadAnimationIsComplete(true);
+    setFadeOutIsComplete(false);
+  }
+
+  const loadingScreen = (
+    <div
+      ref={loadingScreenRef}
+      className={classNames("LoadingScreen", {
+        "LoadingScreen--darkMode": darkMode,
+        "LoadingScreen--loaded": loadingIsComplete && loadAnimationIsComplete,
+      })}
+    >
+      <LoadingBackground />
+
+      <div className="LoadingScreen__logo">
+        <div>
+          <img
+            src="https://foxia.vn/logo.svg"
+            alt="App logo"
+            onLoad={handleLoadAnimationComplete}
+            onError={handleLoadAnimationComplete}
+          />
         </div>
-    );
+      </div>
+    </div>
+  );
 
-    return loadingInProgress() ? loadingScreen : null;
+  return loadingInProgress() ? loadingScreen : null;
 }
 
 export default LoadingScreen;

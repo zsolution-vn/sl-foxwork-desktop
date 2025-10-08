@@ -259,6 +259,18 @@ export class WebContentsManager {
 
         popoutMenu(viewId);
     };
+
+    reloadAllViews = () => {
+        this.webContentsViews.forEach((view) => {
+            try {
+                if (!view.isDestroyed()) {
+                    view.getWebContentsView().webContents.reloadIgnoringCache();
+                }
+            } catch (e) {
+                log.debug('reloadAllViews error', e);
+            }
+        });
+    };
 }
 
 const webContentsManager = new WebContentsManager();

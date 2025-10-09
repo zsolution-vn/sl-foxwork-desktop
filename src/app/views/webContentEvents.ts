@@ -85,6 +85,63 @@ export class WebContentsEventManager {
         }
         return server.url;
     };
+    private openInternalPopupForURL = (serverURL: URL, targetURL: string, spellcheck = true) => {
+        let popup: BrowserWindow;
+        if (this.popupWindow) {
+            this.popupWindow.win.once('ready-to-show', () => {
+                this.popupWindow?.win.show();
+            });
+            popup = this.popupWindow.win;
+        } else {
+            this.popupWindow = {
+                win: new BrowserWindow({
+                    backgroundColor: '#fff',
+                    parent: MainWindow.get(),
+                    show: false,
+                    center: true,
+                    webPreferences: {
+                        spellcheck: (typeof spellcheck === 'undefined' ? true : spellcheck),
+                    },
+                }),
+                serverURL,
+            };
+
+            popup = this.popupWindow.win;
+            popup.webContents.on('will-redirect', (event, url) => {
+                const parsed = parseURL(url);
+                if (!parsed) {
+                    event.preventDefault();
+                    return;
+                }
+
+                // Khi redirect về URL nội bộ của server, đóng popup và mở trong tab chính
+                if (isInternalURL(serverURL, parsed) && !isPluginUrl(serverURL, parsed) && !isManagedResource(serverURL, parsed)) {
+                    event.preventDefault();
+                    try {
+                        NavigationManager.openLinkInPrimaryTab(parsed);
+                    } finally {
+                        this.popupWindow?.win.close();
+                    }
+                }
+            });
+            popup.webContents.on('will-navigate', this.generateWillNavigate(popup.webContents.id));
+            popup.webContents.setWindowOpenHandler(this.denyNewWindow);
+            popup.once('closed', () => {
+                this.popupWindow = undefined;
+            });
+
+            const contextMenu = new ContextMenu({}, popup);
+            contextMenu.reload();
+        }
+
+        popup.once('ready-to-show', () => popup.show());
+
+        // Đặt userAgent tùy biến để tương thích một số IdP (ví dụ Google OAuth)
+        popup.loadURL(targetURL, {
+            userAgent: composeUserAgent(),
+        });
+        return popup;
+    };
     private isOAuthUrl = (serverURL: URL, inputURL: URL): boolean => {
         const pathname = inputURL.pathname.toLowerCase();
         const search = (inputURL.search || '').toLowerCase();
@@ -132,8 +189,7 @@ export class WebContentsEventManager {
                 return;
             }
             if (serverURL && this.isOAuthUrl(serverURL, parsedURL)) {
-                event.preventDefault();
-                shell.openExternal(url);
+                // Cho phép điều hướng trực tiếp trong webview chính tới trang SSO/OAuth
                 return;
             }
 
@@ -229,6 +285,12 @@ export class WebContentsEventManager {
                 NavigationManager.openLinkInPrimaryTab(parsedURL);
                 return {action: 'deny'};
             }
+
+            // Nếu là OAuth/OpenID của cùng server, mở trực tiếp trong tab chính
+            if (this.isOAuthUrl(serverURL, parsedURL)) {
+                NavigationManager.openLinkInPrimaryTab(parsedURL);
+                return {action: 'deny'};
+            }
             if (isAdminUrl(serverURL, parsedURL)) {
                 this.log(webContentsId).info(`${details.url} is an admin console page, preventing to open a new window`);
                 return {action: 'deny'};
@@ -303,11 +365,12 @@ export class WebContentsEventManager {
                 return {action: 'deny'};
             }
             if (otherServerURL && this.isOAuthUrl(otherServerURL.url, parsedURL)) {
-                shell.openExternal(details.url);
+                // Mở trực tiếp trong tab chính nếu là OAuth của server khác
+                NavigationManager.openLinkInPrimaryTab(parsedURL);
                 return {action: 'deny'};
             }
 
-            // If all else fails, just open externally
+            // Mặc định: mở ngoài như cũ
             shell.openExternal(details.url);
             return {action: 'deny'};
         };

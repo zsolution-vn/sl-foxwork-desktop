@@ -1,6 +1,7 @@
 // Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import fs from 'fs';
 import path from 'path';
 
 import {dialog, ipcMain, app, nativeImage} from 'electron';
@@ -142,9 +143,46 @@ export class UpdateManager {
         }
     };
 
+    getReleaseNotes = (): string => {
+        try {
+            // Đọc từ CHANGELOG.md
+            const changelogPath = path.join(process.cwd(), 'CHANGELOG.md');
+            if (fs.existsSync(changelogPath)) {
+                const changelog = fs.readFileSync(changelogPath, 'utf8');
+
+                // Extract version notes
+                const versionMatch = changelog.match(/## \[([^\]]+)\][\s\S]*?(?=##|$)/);
+                if (versionMatch) {
+                    return versionMatch[0].replace(/## \[[^\]]+\][\s\S]*?\n/, '').trim();
+                }
+            }
+        } catch (error) {
+            log.warn('Failed to read CHANGELOG.md:', error);
+        }
+
+        // Fallback release notes
+        return '• Cải thiện hiệu suất và ổn định\n• Sửa lỗi crash và memory leak\n• Cập nhật giao diện người dùng\n• Thêm tính năng auto-update';
+    };
+
     handleUpdate = (): void => {
         downloadsManager.removeUpdateBeforeRestart();
-        autoUpdater.quitAndInstall();
+
+        // Show dialog xác nhận trước khi update
+        const releaseNotes = this.getReleaseNotes();
+        dialog.showMessageBox({
+            title: app.name,
+            message: `Đã có bản cập nhật mới (${this.versionDownloaded}). Ứng dụng sẽ khởi động lại để hoàn tất việc cập nhật.`,
+            detail: releaseNotes ? `Những thay đổi trong phiên bản mới:\n\n${releaseNotes}` : '',
+            type: 'info',
+            buttons: ['Cài đặt ngay', 'Bỏ qua'],
+            defaultId: 0,
+            cancelId: 1,
+        }).then((result) => {
+            if (result.response === 0) {
+                // User chọn Install Now
+                autoUpdater.quitAndInstall(true, true);
+            }
+        });
     };
 
     displayNoUpgrade = (): void => {

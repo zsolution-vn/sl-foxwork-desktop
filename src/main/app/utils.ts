@@ -1,12 +1,11 @@
 // Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
-import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
 
 import type {BrowserWindow, Rectangle} from 'electron';
-import {app, Menu, session, dialog, nativeImage, screen, net} from 'electron';
+import {app, Menu, session, dialog, nativeImage, screen} from 'electron';
 import isDev from 'electron-is-dev';
 
 import MainWindow from 'app/mainWindow/mainWindow';
@@ -14,20 +13,16 @@ import {createMenu as createAppMenu} from 'app/menus/app';
 import {createMenu as createTrayMenu} from 'app/menus/tray';
 import NavigationManager from 'app/navigationManager';
 import Tray from 'app/system/tray/tray';
-import WebContentsManager from 'app/views/webContentsManager';
 import {MAIN_WINDOW_CREATED} from 'common/communication';
 import Config from 'common/config';
-import {SECURE_STORAGE_KEYS} from 'common/constants/secureStorage';
 import JsonFileManager from 'common/JsonFileManager';
 import {Logger} from 'common/log';
 import type {MattermostServer} from 'common/servers/MattermostServer';
 import ServerManager from 'common/servers/serverManager';
-import {isValidURI, parseURL} from 'common/utils/url';
+import {isValidURI} from 'common/utils/url';
 import updateManager from 'main/autoUpdater';
 import {migrationInfoPath, updatePaths} from 'main/constants';
 import {localizeMessage} from 'main/i18nManager';
-import secureStorage from 'main/secureStorage';
-import {getServerAPI} from 'main/server/serverAPI';
 import {ServerInfo} from 'main/server/serverInfo';
 
 import type {MigrationInfo} from 'types/config';
@@ -45,19 +40,19 @@ export function openDeepLink(deeplinkingUrl: string) {
     try {
         log.info('openDeepLink invoked', {deeplinkingUrl});
 
-        // Attempt desktop_token login handshake if deeplink is for desktop login
-        try {
-            const server = ServerManager.lookupServerByURL(deeplinkingUrl, true);
-            // eslint-disable-next-line no-negated-condition
-            if (!(server && server.isLoggedIn)) {
-                tryDesktopTokenLogin(deeplinkingUrl);
-            } else {
-                log.info('Skipping desktop_token login: server already logged in', {serverId: server.id});
-            }
-        } catch (e) {
-            // If lookup fails, fallback to attempting login
-            tryDesktopTokenLogin(deeplinkingUrl);
-        }
+        // Tắt logic verify token vì SSO đã chạy trực tiếp trong app
+        // try {
+        //     const server = ServerManager.lookupServerByURL(deeplinkingUrl, true);
+        //     // eslint-disable-next-line no-negated-condition
+        //     if (!(server && server.isLoggedIn)) {
+        //         tryDesktopTokenLogin(deeplinkingUrl);
+        //     } else {
+        //         log.info('Skipping desktop_token login: server already logged in', {serverId: server.id});
+        //     }
+        // } catch (e) {
+        //     // If lookup fails, fallback to attempting login
+        //     tryDesktopTokenLogin(deeplinkingUrl);
+        // }
 
         if (MainWindow.get()) {
             MainWindow.show();
@@ -70,182 +65,185 @@ export function openDeepLink(deeplinkingUrl: string) {
     }
 }
 
-async function tryDesktopTokenLogin(rawDeepLink: string) {
-    try {
-        // Expecting: foxwork://work.foxia.vn/login/desktop/?client_token=...&server_token=...
-        const url = new URL(rawDeepLink);
-        const host = url.host.toLowerCase();
-        const pathname = url.pathname.toLowerCase();
-        const serverToken = url.searchParams.get('server_token');
-        const clientToken = url.searchParams.get('client_token');
-        log.info('tryDesktopTokenLogin inspect', {scheme: url.protocol, host, pathname, hasServerToken: Boolean(serverToken), hasClientToken: Boolean(clientToken)});
+// async function tryDesktopTokenLogin(_rawDeepLink: string) {
+//     // Tắt logic verify token vì SSO đã chạy trực tiếp trong app
+//     log.info('tryDesktopTokenLogin disabled - SSO now runs directly in app');
 
-        // Checklist: must target production host, correct path, and have server_token
-        if (host !== 'work.foxia.vn' || !pathname.startsWith('/login/desktop') || !serverToken) {
-            return;
-        }
-        log.info('desktop_token login', {serverToken});
-        const endpoint = new URL('/api/v4/users/login/desktop_token', 'https://work.foxia.vn');
+//     // try {
+//     //     // Expecting: foxwork://work.foxia.vn/login/desktop/?client_token=...&server_token=...
+//     //     const url = new URL(rawDeepLink);
+//     //     const host = url.host.toLowerCase();
+//     //     const pathname = url.pathname.toLowerCase();
+//     //     const serverToken = url.searchParams.get('server_token');
+//     //     const clientToken = url.searchParams.get('client_token');
+//     //     log.info('tryDesktopTokenLogin inspect', {scheme: url.protocol, host, pathname, hasServerToken: Boolean(serverToken), hasClientToken: Boolean(clientToken)});
 
-        const request = net.request({
-            method: 'POST',
-            url: endpoint.toString(),
-            session: session.defaultSession,
-            useSessionCookies: true,
-        });
+//     //     // Checklist: must target production host, correct path, and have server_token
+//     //     if (host !== 'work.foxia.vn' || !pathname.startsWith('/login/desktop') || !serverToken) {
+//     //         return;
+//     //     }
+//     //     log.info('desktop_token login', {serverToken});
+//     //     const endpoint = new URL('/api/v4/users/login/desktop_token', 'https://work.foxia.vn');
 
-        request.setHeader('Content-Type', 'application/json');
+//     //     const request = net.request({
+//     //         method: 'POST',
+//     //         url: endpoint.toString(),
+//     //         session: session.defaultSession,
+//     //         useSessionCookies: true,
+//     //     });
 
-        request.on('response', (response) => {
-            const status = response.statusCode || 0;
-            let raw = '';
-            response.on('data', (chunk: Buffer) => {
-                raw += `${chunk}`;
-            });
-            response.on('end', () => {
-                try {
-                    const body = raw ? JSON.parse(raw) as {server_error_id?: string; [k: string]: unknown} : {};
-                    if (status >= 200 && status < 300) {
-                        log.info('desktop_token login success');
-                        validateDesktopLogin();
-                    } else {
-                        log.warn('desktop_token login failed', {status, server_error_id: (body as any)?.server_error_id, body});
-                        const mw = MainWindow.get();
-                        if (mw) {
-                            dialog.showMessageBox(mw, {
-                                type: 'error',
-                                title: app.name,
-                                message: 'Đăng nhập  thất bại',
-                                detail: body?.message as any ?? 'Unknown error',
-                                buttons: ['OK'],
-                            });
-                        }
-                    }
-                } catch (e) {
-                    if (status >= 200 && status < 300) {
-                        log.info('desktop_token login success (no body)');
-                        const mw = MainWindow.get();
-                        if (mw) {
-                            dialog.showMessageBox(mw, {
-                                type: 'info',
-                                title: app.name,
-                                message: 'Đăng nhập desktop_token thành công',
-                                buttons: ['OK'],
-                            });
-                        }
-                        validateDesktopLogin();
-                    } else {
-                        log.warn('desktop_token login failed (non-JSON body)', {status, raw});
-                        const mw = MainWindow.get();
-                        if (mw) {
-                            dialog.showMessageBox(mw, {
-                                type: 'error',
-                                title: app.name,
-                                message: 'Đăng nhập desktop_token thất bại',
-                                buttons: ['OK'],
-                            });
-                        }
-                    }
-                }
-            });
-            response.on('error', (e) => {
-                log.warn('desktop_token login response error', e);
-            });
-        });
+//     //     request.setHeader('Content-Type', 'application/json');
 
-        request.on('error', (e) => {
-            log.warn('desktop_token login request error', e);
-            const mw = MainWindow.get();
-            if (mw) {
-                dialog.showMessageBox(mw, {
-                    type: 'error',
-                    title: app.name,
-                    message: 'Đăng nhập desktop_token thất bại',
-                    detail: `Lỗi request tới /api/v4/users/login/desktop_token: ${e}`,
-                    buttons: ['OK'],
-                });
-            }
-        });
+//     //     request.on('response', (response) => {
+//     //         const status = response.statusCode || 0;
+//     //         let raw = '';
+//     //         response.on('data', (chunk: Buffer) => {
+//     //             raw += `${chunk}`;
+//     //         });
+//     //         response.on('end', () => {
+//     //             try {
+//     //                 const body = raw ? JSON.parse(raw) as {server_error_id?: string; [k: string]: unknown} : {};
+//     //                 if (status >= 200 && status < 300) {
+//     //                     log.info('desktop_token login success');
+//     //                     validateDesktopLogin();
+//     //                 } else {
+//     //                     log.warn('desktop_token login failed', {status, server_error_id: (body as any)?.server_error_id, body});
+//     //                     const mw = MainWindow.get();
+//     //                     if (mw) {
+//     //                         dialog.showMessageBox(mw, {
+//     //                             type: 'error',
+//     //                             title: app.name,
+//     //                             message: 'Đăng nhập  thất bại',
+//     //                             detail: body?.message as any ?? 'Unknown error',
+//     //                             buttons: ['OK'],
+//     //                         });
+//     //                     }
+//     //                 }
+//     //             } catch (e) {
+//     //                 if (status >= 200 && status < 300) {
+//     //                     log.info('desktop_token login success (no body)');
+//     //                     const mw = MainWindow.get();
+//     //                     if (mw) {
+//     //                         dialog.showMessageBox(mw, {
+//     //                             type: 'info',
+//     //                             title: app.name,
+//     //                             message: 'Đăng nhập desktop_token thành công',
+//     //                             buttons: ['OK'],
+//     //                         });
+//     //                     }
+//     //                     validateDesktopLogin();
+//     //                 } else {
+//     //                     log.warn('desktop_token login failed (non-JSON body)', {status, raw});
+//     //                     const mw = MainWindow.get();
+//     //                     if (mw) {
+//     //                         dialog.showMessageBox(mw, {
+//     //                             type: 'error',
+//     //                             title: app.name,
+//     //                             message: 'Đăng nhập desktop_token thất bại',
+//     //                             buttons: ['OK'],
+//     //                         });
+//     //                     }
+//     //                 }
+//     //             }
+//     //         });
+//     //         response.on('error', (e) => {
+//     //             log.warn('desktop_token login response error', e);
+//     //         });
+//     //     });
 
-        const deviceId = await getOrCreateDeviceId('https://work.foxia.vn');
-        const payload = JSON.stringify({token: serverToken, device_id: deviceId});
-        request.write(payload);
-        request.end();
-    } catch (e) {
-        // Swallow errors to not block normal deeplink navigation
-        log.debug('tryDesktopTokenLogin skipped', e);
-    }
-}
+//     //     request.on('error', (e) => {
+//     //         log.warn('desktop_token login request error', e);
+//     //         const mw = MainWindow.get();
+//     //         if (mw) {
+//     //             dialog.showMessageBox(mw, {
+//     //                 type: 'error',
+//     //                 title: app.name,
+//     //                 message: 'Đăng nhập desktop_token thất bại',
+//     //                 detail: `Lỗi request tới /api/v4/users/login/desktop_token: ${e}`,
+//     //                 buttons: ['OK'],
+//     //             });
+//     //         }
+//     //     });
 
-function validateDesktopLogin() {
-    try {
-        const serverURL = parseURL('https://work.foxia.vn');
-        if (!serverURL) {
-            return;
-        }
-        const url = new URL('/api/v4/users/me', serverURL);
+//     //     const deviceId = await getOrCreateDeviceId('https://work.foxia.vn');
+//     //     const payload = JSON.stringify({token: serverToken, device_id: deviceId});
+//     //     request.write(payload);
+//     //     request.end();
+//     // } catch (e) {
+//     //     // Swallow errors to not block normal deeplink navigation
+//     //     log.debug('tryDesktopTokenLogin skipped', e);
+//     // }
+// }
 
-        getServerAPI(
-            url,
-            true,
-            () => {
-                const server = ServerManager.lookupServerByURL(serverURL);
-                if (server) {
-                    ServerManager.setLoggedIn(server.id, true);
+// function validateDesktopLogin() {
+//     try {
+//         const serverURL = parseURL('https://work.foxia.vn');
+//         if (!serverURL) {
+//             return;
+//         }
+//         const url = new URL('/api/v4/users/me', serverURL);
 
-                    // Refresh remote info (config/license/plugins) to update app state
-                    updateServerInfos([server]);
-                }
+//         getServerAPI(
+//             url,
+//             true,
+//             () => {
+//                 const server = ServerManager.lookupServerByURL(serverURL);
+//                 if (server) {
+//                     ServerManager.setLoggedIn(server.id, true);
 
-                // Thay vì relaunch toàn bộ app, chỉ reload như Cmd+R
-                // Reload tất cả BrowserView sau khi đăng nhập thành công
-                try {
-                    WebContentsManager.reloadAllViews();
-                } catch (e) {
-                    log.debug('reloadAllViews failed', e);
-                }
-            },
-            undefined,
-            (error, statusCode) => {
-                log.warn('validateDesktopLogin failed', {statusCode, error});
+//                     // Refresh remote info (config/license/plugins) to update app state
+//                     updateServerInfos([server]);
+//                 }
 
-                const mw = MainWindow.get();
-                if (mw) {
-                    dialog.showMessageBox(mw, {
-                        type: 'error',
-                        title: app.name,
-                        message: 'Đăng nhập desktop thất bại',
-                        detail: `Kiểm tra /api/v4/users/me thất bại. status=${statusCode ?? ''}`,
-                        buttons: ['OK'],
-                    });
-                }
-            },
-        );
-    } catch (e) {
-        log.debug('validateDesktopLogin skipped', e);
-    }
-}
+//                 // Thay vì relaunch toàn bộ app, chỉ reload như Cmd+R
+//                 // Reload tất cả BrowserView sau khi đăng nhập thành công
+//                 try {
+//                     WebContentsManager.reloadAllViews();
+//                 } catch (e) {
+//                     log.debug('reloadAllViews failed', e);
+//                 }
+//             },
+//             undefined,
+//             (error, statusCode) => {
+//                 log.warn('validateDesktopLogin failed', {statusCode, error});
 
-async function getOrCreateDeviceId(serverUrlString: string): Promise<string> {
-    const serverURL = parseURL(serverUrlString);
-    const key = serverURL ? serverURL.toString() : serverUrlString;
-    try {
-        const existing = await secureStorage.getSecret(key, SECURE_STORAGE_KEYS.DEVICE_ID);
-        if (existing) {
-            return existing;
-        }
-    } catch (e) {
-        log.debug('getOrCreateDeviceId read failed, will create new', e);
-    }
+//                 const mw = MainWindow.get();
+//                 if (mw) {
+//                     dialog.showMessageBox(mw, {
+//                         type: 'error',
+//                         title: app.name,
+//                         message: 'Đăng nhập desktop thất bại',
+//                         detail: `Kiểm tra /api/v4/users/me thất bại. status=${statusCode ?? ''}`,
+//                         buttons: ['OK'],
+//                     });
+//                 }
+//             },
+//         );
+//     } catch (e) {
+//         log.debug('validateDesktopLogin skipped', e);
+//     }
+// }
 
-    const newId = crypto.randomUUID();
-    try {
-        await secureStorage.setSecret(key, SECURE_STORAGE_KEYS.DEVICE_ID, newId);
-    } catch (e) {
-        log.debug('getOrCreateDeviceId write failed, continuing with volatile id', e);
-    }
-    return newId;
-}
+// async function getOrCreateDeviceId(serverUrlString: string): Promise<string> {
+//     const serverURL = parseURL(serverUrlString);
+//     const key = serverURL ? serverURL.toString() : serverUrlString;
+//     try {
+//         const existing = await secureStorage.getSecret(key, SECURE_STORAGE_KEYS.DEVICE_ID);
+//         if (existing) {
+//             return existing;
+//         }
+//     } catch (e) {
+//         log.debug('getOrCreateDeviceId read failed, will create new', e);
+//     }
+
+//     const newId = crypto.randomUUID();
+//     try {
+//         await secureStorage.setSecret(key, SECURE_STORAGE_KEYS.DEVICE_ID, newId);
+//     } catch (e) {
+//         log.debug('getOrCreateDeviceId write failed, continuing with volatile id', e);
+//     }
+//     return newId;
+// }
 
 export function updateSpellCheckerLocales() {
     if (Config.spellCheckerLocales.length && app.isReady()) {

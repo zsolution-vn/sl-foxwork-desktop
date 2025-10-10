@@ -58,8 +58,8 @@ fi
 echo "[mac-build-dist] Cleaning output directories..."
 rm -rf "$ROOT_DIR/release" "$ROOT_DIR/dist"
 
-echo "[mac-build-dist] Building production bundles..."
-npm run build-prod
+echo "[mac-build-dist] Building production bundles with auto-update enabled..."
+npm run build-prod-upgrade
 
 echo "[mac-build-dist] Building signed & notarized macOS universal app (x64 + arm64)..."
 npx --yes electron-builder --mac --universal --publish=never

@@ -2,7 +2,7 @@
   "publish": [
     {
     "provider": "generic",
-    "url": "https://releases.mattermost.com/desktop"
+    "url": "https://hcm03.vstorage.vngcloud.vn/v1/AUTH_26d35a1626794345820c957a59fb6b2a/crmzs-prod/foxwork-desktop"
     }
   ],
   "appId": "FoxWork.Desktop",

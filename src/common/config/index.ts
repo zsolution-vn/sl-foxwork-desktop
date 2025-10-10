@@ -440,11 +440,36 @@ export class Config extends EventEmitter {
             return __CAN_UPGRADE__; // prevent showing the option if the path is not writeable, like in a managed environment.
         }
 
-        // temporarily disabling auto updater for macOS due to security issues
+        // macOS: Kiểm tra quyền ghi và Squirrel framework
+        if (process.platform === 'darwin') {
+            try {
+                // Kiểm tra Squirrel framework tồn tại (cần cho auto-update)
+                const squirrelPath = path.join(process.resourcesPath, '..', 'Frameworks', 'Squirrel.framework');
+                if (!fs.existsSync(squirrelPath)) {
+                    log.warn('Squirrel.framework not found, disabling auto-updates');
+                    return false;
+                }
+
+                // Kiểm tra app-update.yml tồn tại
+                if (!fs.existsSync(path.join(process.resourcesPath, 'app-update.yml'))) {
+                    log.warn('app-update.yml not found, disabling auto-updates');
+                    return false;
+                }
+
+                // eslint-disable-next-line no-undef
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
+                return __CAN_UPGRADE__;
+            } catch (error) {
+                log.warn('macOS auto-update check failed:', error);
+                return false;
+            }
+        }
+
         // eslint-disable-next-line no-undef
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
-        return process.platform !== 'darwin' && __CAN_UPGRADE__;
+        return __CAN_UPGRADE__;
     };
 }
 

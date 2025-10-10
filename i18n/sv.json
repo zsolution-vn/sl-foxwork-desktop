@@ -87,7 +87,7 @@
   "main.menus.app.help": "Hjäl&p",
   "main.menus.app.help.RunDiagnostics": "Kör diagnostik",
   "main.menus.app.help.ShowLogs": "Visa loggar",
-  "main.menus.app.help.academy": "Mattermost Academy",
+  "main.menus.app.help.academy": "FoxWork Academy",
   "main.menus.app.help.checkForUpdates": "Sök efter uppdateringar",
   "main.menus.app.help.commitString": " commit: {hashVersion}",
   "main.menus.app.help.downloadUpdate": "Ladda ner uppdatering",

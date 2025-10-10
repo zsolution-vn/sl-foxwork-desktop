@@ -2,7 +2,7 @@
 // See LICENSE.txt for license information.
 
 import type {IpcMainEvent} from 'electron';
-import {WebContentsView, ipcMain} from 'electron';
+import {WebContentsView, ipcMain, app} from 'electron';
 
 import MainWindow from 'app/mainWindow/mainWindow';
 import {
@@ -34,6 +34,7 @@ export class DownloadsDropdownView {
     private windowBounds?: Electron.Rectangle;
     private item?: DownloadedItem;
     private view?: WebContentsView;
+    private isShuttingDown = false;
 
     constructor() {
         MainWindow.on(MAIN_WINDOW_CREATED, this.init);
@@ -47,6 +48,12 @@ export class DownloadsDropdownView {
         ipcMain.on(DOWNLOADS_DROPDOWN_OPEN_FILE, this.openFile);
         ipcMain.on(UPDATE_DOWNLOADS_DROPDOWN, this.updateDownloadsDropdown);
         ipcMain.on(UPDATE_DOWNLOADS_DROPDOWN_MENU_ITEM, this.updateDownloadsDropdownMenuItem);
+
+        // Ensure we stop reacting to events during shutdown
+        app.on('before-quit', () => {
+            this.isShuttingDown = true;
+            this.teardown();
+        });
     }
 
     init = () => {
@@ -83,11 +90,27 @@ export class DownloadsDropdownView {
     private updateDownloadsDropdown = () => {
         log.silly('updateDownloadsDropdown');
 
-        this.view?.webContents.send(
+        if (this.isShuttingDown) {
+            return;
+        }
+        if (!this.view || this.view.webContents.isDestroyed()) {
+            return;
+        }
+        let mainBounds: Electron.Rectangle | undefined;
+        try {
+            mainBounds = MainWindow.getBounds?.();
+        } catch (e) {
+            mainBounds = undefined;
+        }
+        if (!mainBounds) {
+            return;
+        }
+
+        this.view.webContents.send(
             UPDATE_DOWNLOADS_DROPDOWN,
             downloadsManager.getDownloads(),
             Config.darkMode,
-            MainWindow.getBounds(),
+            mainBounds,
             this.item,
         );
     };
@@ -95,7 +118,10 @@ export class DownloadsDropdownView {
     private handleOpen = () => {
         log.debug('handleOpen', {bounds: this.bounds});
 
-        if (!(this.bounds && this.view)) {
+        if (this.isShuttingDown) {
+            return;
+        }
+        if (!(this.bounds && this.view) || this.view.webContents.isDestroyed()) {
             return;
         }
 
@@ -109,7 +135,9 @@ export class DownloadsDropdownView {
     private handleClose = () => {
         log.silly('handleClose');
 
-        this.view?.setBounds(this.getBounds(this.windowBounds?.width ?? 0, 0, 0));
+        if (this.view && !this.view.webContents.isDestroyed()) {
+            this.view.setBounds(this.getBounds(this.windowBounds?.width ?? 0, 0, 0));
+        }
         downloadsManager.onClose();
         MainWindow.sendToRenderer(CLOSE_DOWNLOADS_DROPDOWN);
     };
@@ -148,6 +176,9 @@ export class DownloadsDropdownView {
     };
 
     private repositionDownloadsDropdown = () => {
+        if (this.isShuttingDown) {
+            return;
+        }
         if (!(this.bounds && this.windowBounds)) {
             return;
         }
@@ -156,8 +187,8 @@ export class DownloadsDropdownView {
             x: this.getX(this.windowBounds.width),
             y: this.getY(),
         };
-        if (downloadsManager.getIsOpen()) {
-            this.view?.setBounds(this.bounds);
+        if (downloadsManager.getIsOpen() && this.view && !this.view.webContents.isDestroyed()) {
+            this.view.setBounds(this.bounds);
         }
     };
 
@@ -169,9 +200,22 @@ export class DownloadsDropdownView {
         }
 
         this.bounds = this.getBounds(this.windowBounds.width, width, height);
-        if (downloadsManager.getIsOpen()) {
-            this.view?.setBounds(this.bounds);
+        if (downloadsManager.getIsOpen() && this.view && !this.view.webContents.isDestroyed()) {
+            this.view.setBounds(this.bounds);
         }
+    };
+
+    private teardown = () => {
+        // Remove listeners to avoid late IPC during shutdown
+        ipcMain.removeListener(OPEN_DOWNLOADS_DROPDOWN, this.handleOpen);
+        ipcMain.removeListener(CLOSE_DOWNLOADS_DROPDOWN, this.handleClose);
+        ipcMain.removeListener(EMIT_CONFIGURATION, this.updateDownloadsDropdown);
+        ipcMain.removeListener(REQUEST_DOWNLOADS_DROPDOWN_INFO, this.updateDownloadsDropdown);
+        ipcMain.removeListener(REQUEST_CLEAR_DOWNLOADS_DROPDOWN, this.clearDownloads);
+        ipcMain.removeListener(RECEIVE_DOWNLOADS_DROPDOWN_SIZE, this.handleReceivedDownloadsDropdownSize);
+        ipcMain.removeListener(DOWNLOADS_DROPDOWN_OPEN_FILE, this.openFile);
+        ipcMain.removeListener(UPDATE_DOWNLOADS_DROPDOWN, this.updateDownloadsDropdown);
+        ipcMain.removeListener(UPDATE_DOWNLOADS_DROPDOWN_MENU_ITEM, this.updateDownloadsDropdownMenuItem);
     };
 }
 

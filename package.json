@@ -1,7 +1,7 @@
 {
   "name": "foxwork-desktop",
   "productName": "FoxWork",
-  "version": "0.0.5",
+  "version": "0.0.2",
   "description": "FoxWork",
   "main": "dist/index.js",
   "author": "Foxia Team <locflute@gmail.com>",

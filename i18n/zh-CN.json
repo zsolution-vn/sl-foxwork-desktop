@@ -84,7 +84,7 @@
   "main.menus.app.help": "Hel&p",
   "main.menus.app.help.RunDiagnostics": "执行诊断",
   "main.menus.app.help.ShowLogs": "显示日志",
-  "main.menus.app.help.academy": "Mattermost Academy",
+  "main.menus.app.help.academy": "FoxWork Academy",
   "main.menus.app.help.checkForUpdates": "检查更新",
   "main.menus.app.help.commitString": " commit: {hashVersion}",
   "main.menus.app.help.downloadUpdate": "下载更新",

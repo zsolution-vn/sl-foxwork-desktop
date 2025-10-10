@@ -13,7 +13,7 @@ import {localizeMessage} from 'main/i18nManager';
 import type {MentionOptions} from 'types/notification';
 
 const assetsDir = path.resolve(app.getAppPath(), 'assets');
-const appIconURL = path.resolve(assetsDir, 'appicon_48.png');
+const appIconURL = path.resolve(assetsDir, 'logo_48.png');
 
 const defaultOptions = {
     title: localizeMessage('main.notifications.mention.title', 'Someone mentioned you'),

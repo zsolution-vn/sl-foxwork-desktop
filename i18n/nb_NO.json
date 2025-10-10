@@ -81,7 +81,7 @@
   "main.menus.app.help": "Hjel&p",
   "main.menus.app.help.RunDiagnostics": "Kjør diagnostikk",
   "main.menus.app.help.ShowLogs": "Vis logger",
-  "main.menus.app.help.academy": "Mattermost Academy",
+  "main.menus.app.help.academy": "FoxWork Academy",
   "main.menus.app.help.checkForUpdates": "Se etter oppdateringer",
   "main.menus.app.help.commitString": " sende inn: {hashVersion}",
   "main.menus.app.help.downloadUpdate": "Last ned oppdatering",

@@ -155,7 +155,12 @@ export class MainWindow extends EventEmitter {
     };
 
     getBounds = () => {
-        return this.win?.getBounds();
+        try {
+            return this.win?.getBounds();
+        } catch (e) {
+            log.warn('getBounds called after window destroyed', e);
+            return undefined;
+        }
     };
 
     private shouldStartFullScreen = () => {

@@ -76,7 +76,7 @@
   "main.menus.app.file.signInToAnotherServer": "Sign in to Another Server",
   "main.menus.app.file.unhide": "Show All",
   "main.menus.app.help": "Hel&p",
-  "main.menus.app.help.academy": "Mattermost Academy",
+  "main.menus.app.help.academy": "FoxWork Academy",
   "main.menus.app.help.checkForUpdates": "Check for Updates",
   "main.menus.app.help.commitString": " commit: {hashVersion}",
   "main.menus.app.help.downloadUpdate": "Download Update",

@@ -32,11 +32,13 @@ export default class BaseWindow {
     private loadingScreen: LoadingScreen;
     private urlView: URLView;
     private ready: boolean;
+    private closing: boolean;
 
     private altPressStatus: boolean;
 
     constructor(options: BrowserWindowConstructorOptions) {
         this.ready = false;
+        this.closing = false;
         this.altPressStatus = false;
 
         const windowOptions: BrowserWindowConstructorOptions = Object.assign({}, {
@@ -74,6 +76,17 @@ export default class BaseWindow {
         this.win.webContents.once('did-finish-load', () => {
             this.win.webContents.zoomLevel = 0;
             this.ready = true;
+        });
+
+        // Keep native window title consistent with app name regardless of
+        // document.title coming from renderer HTML templates
+        this.win.on('page-title-updated', (event) => {
+            event.preventDefault();
+            try {
+                this.win.setTitle(app.name);
+            } catch {
+                // ignore if window is closing
+            }
         });
 
         this.win.once('restore', () => {
@@ -161,7 +174,14 @@ export default class BaseWindow {
     };
 
     showURLView = (url: string) => {
-        this.urlView.show(url);
+        if (!this.win || this.closing || this.win.isDestroyed()) {
+            return;
+        }
+        try {
+            this.urlView.show(url);
+        } catch (e) {
+            log.warn('showURLView error after closing/destroyed', e);
+        }
     };
 
     private sendToRendererWithRetry = (maxRetries: number, channel: string, ...args: unknown[]) => {
@@ -208,9 +228,18 @@ export default class BaseWindow {
     private onClosed = () => {
         log.info('window closed');
         this.ready = false;
+        this.closing = true;
         ipcMain.off(EMIT_CONFIGURATION, this.onEmitConfiguration);
         this.loadingScreen.destroy();
         this.urlView.destroy();
+
+        // Ensure we don't use a destroyed BrowserWindow
+        // Assign undefined so all callers using optional chaining stop early
+        // and avoid calling into a destroyed native object.
+        // No other teardown needed here, since listeners are removed above.
+        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+        // @ts-ignore - allow setting to undefined for safety
+        this.win = undefined;
     };
 
     private onUnresponsive = () => {

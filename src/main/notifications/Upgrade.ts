@@ -8,7 +8,7 @@ import {app, Notification} from 'electron';
 import {localizeMessage} from 'main/i18nManager';
 
 const assetsDir = path.resolve(app.getAppPath(), 'assets');
-const appIconURL = path.resolve(assetsDir, 'appicon_48.png');
+const appIconURL = path.resolve(assetsDir, 'logo_48.png');
 
 const defaultOptions = {
     title: localizeMessage('main.notifications.upgrade.newVersion.title', 'New desktop version available'),

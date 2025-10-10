@@ -1,6 +1,7 @@
 // Copyright (c) 2016-present Mattermost, Inc. All Rights Reserved.
 // See LICENSE.txt for license information.
 
+import {spawn} from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -34,7 +35,7 @@ autoUpdater.autoDownload = false;
 autoUpdater.disableWebInstaller = true;
 
 const assetsDir = path.resolve(app.getAppPath(), 'assets');
-const appIconURL = path.resolve(assetsDir, 'appicon_with_spacing_32.png');
+const appIconURL = path.resolve(assetsDir, 'logo_32.png');
 const appIcon = nativeImage.createFromPath(appIconURL);
 
 /** to test this during development
@@ -59,9 +60,19 @@ export class UpdateManager {
     versionAvailable?: string;
     versionDownloaded?: string;
     downloadedInfo?: UpdateInfo;
+    private quittingForUpdate = false;
 
     constructor() {
         this.cancellationToken = new CancellationToken();
+
+        // Handle app quit để install update
+        app.on('before-quit', () => {
+            if (this.versionDownloaded) {
+                log.info('App is quitting, will install update...');
+
+                // Không prevent default quit behavior
+            }
+        });
 
         autoUpdater.on('error', (err: Error) => {
             log.error('There was an error while trying to update', err);
@@ -134,7 +145,7 @@ export class UpdateManager {
     };
 
     handleRemindLater = (): void => {
-        // TODO
+        // Remind later functionality not implemented yet
     };
 
     handleOnQuit = (): void => {
@@ -161,7 +172,7 @@ export class UpdateManager {
         }
 
         // Fallback release notes
-        return '• Cải thiện hiệu suất và ổn định\n• Sửa lỗi crash và memory leak\n• Cập nhật giao diện người dùng\n• Thêm tính năng auto-update';
+        return '';
     };
 
     handleUpdate = (): void => {
@@ -180,9 +191,121 @@ export class UpdateManager {
         }).then((result) => {
             if (result.response === 0) {
                 // User chọn Install Now
-                autoUpdater.quitAndInstall(true, true);
+                if (this.quittingForUpdate) {
+                    return;
+                }
+                this.quittingForUpdate = true;
+                log.info('Starting update process via quitAndInstall');
+
+                // Allow mainWindow onClose() to proceed without preventDefault
+                // Our onClose handler checks this flag to know if app is quitting intentionally
+                // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+                // @ts-ignore
+                global.willAppQuit = true;
+                try {
+                    autoUpdater.quitAndInstall(true, true);
+                } catch (error) {
+                    log.error('quitAndInstall threw error, attempting manualInstallUpdate', error);
+                    this.manualInstallUpdate();
+                }
+
+                // Safety net: if for some reason the app is still alive after a short delay,
+                // attempt a normal quit so updater can proceed.
+                setTimeout(() => {
+                    try {
+                        app.quit();
+                    } catch (e) {
+                        log.warn('Fallback app.quit() failed', e);
+                    }
+                }, 700);
             }
         });
+    };
+
+    manualInstallUpdate = (): void => {
+        try {
+            log.info('Attempting manual update installation...');
+
+            let updateCacheDir: string;
+            let updateAppPath: string;
+            let targetPath: string;
+            let copyCommand: string;
+
+            if (process.platform === 'darwin') {
+                // macOS
+                updateCacheDir = path.join(process.env.HOME || '', 'Library/Caches/FoxWork.Desktop.ShipIt');
+                const updateDirs = fs.readdirSync(updateCacheDir).filter((dir) => dir.startsWith('update.'));
+
+                if (updateDirs.length > 0) {
+                    const latestUpdateDir = updateDirs[updateDirs.length - 1];
+                    updateAppPath = path.join(updateCacheDir, latestUpdateDir, 'FoxWork.app');
+                    targetPath = '/Applications/FoxWork.app';
+
+                    if (fs.existsSync(updateAppPath)) {
+                        log.info(`Found update at: ${updateAppPath}`);
+
+                        // Copy update to Applications using AppleScript for better permissions
+                        copyCommand = `
+                            tell application "System Events"
+                                try
+                                    do shell script "rm -rf '${targetPath}'" with administrator privileges
+                                    do shell script "cp -R '${updateAppPath}' '${targetPath}'" with administrator privileges
+                                    do shell script "chown -R root:admin '${targetPath}'" with administrator privileges
+                                    do shell script "chmod -R 755 '${targetPath}'" with administrator privileges
+                                end try
+                            end tell
+                        `;
+
+                        spawn('osascript', ['-e', copyCommand], {detached: true, stdio: 'ignore'});
+
+                        // Start new app
+                        setTimeout(() => {
+                            spawn('open', ['-a', 'FoxWork'], {detached: true, stdio: 'ignore'});
+                        }, 2000);
+
+                        log.info('Manual update installation completed');
+                    } else {
+                        log.error('Update app not found in cache');
+                    }
+                } else {
+                    log.error('No update directories found');
+                }
+            } else if (process.platform === 'win32') {
+                // Windows
+                updateCacheDir = path.join(process.env.LOCALAPPDATA || '', 'FoxWork.Desktop.ShipIt');
+                const updateDirs = fs.readdirSync(updateCacheDir).filter((dir) => dir.startsWith('update.'));
+
+                if (updateDirs.length > 0) {
+                    const latestUpdateDir = updateDirs[updateDirs.length - 1];
+                    updateAppPath = path.join(updateCacheDir, latestUpdateDir, 'FoxWork.exe');
+                    targetPath = path.join(process.env.PROGRAMFILES || 'C:\\Program Files', 'FoxWork');
+
+                    if (fs.existsSync(updateAppPath)) {
+                        log.info(`Found update at: ${updateAppPath}`);
+
+                        // Copy update using PowerShell with admin privileges
+                        copyCommand = `
+                            Remove-Item -Path "${targetPath}" -Recurse -Force -ErrorAction SilentlyContinue
+                            Copy-Item -Path "${updateAppPath}" -Destination "${targetPath}" -Recurse -Force
+                            Start-Process -FilePath "${path.join(targetPath, 'FoxWork.exe')}" -WindowStyle Hidden
+                        `;
+
+                        spawn('powershell', ['-Command', copyCommand], {detached: true, stdio: 'ignore'});
+
+                        log.info('Manual update installation completed');
+                    } else {
+                        log.error('Update exe not found in cache');
+                    }
+                } else {
+                    log.error('No update directories found');
+                }
+            } else {
+                // Linux
+                log.warn('Manual update not supported on Linux');
+            }
+        } catch (error) {
+            log.error('Manual update installation failed:', error);
+        }
     };
 
     displayNoUpgrade = (): void => {

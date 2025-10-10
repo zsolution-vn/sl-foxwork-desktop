@@ -11,7 +11,7 @@ import Utils from 'common/utils/util';
 import {localizeMessage} from 'main/i18nManager';
 
 const assetsDir = path.resolve(app.getAppPath(), 'assets');
-const appIconURL = path.resolve(assetsDir, 'appicon_48.png');
+const appIconURL = path.resolve(assetsDir, 'logo_48.png');
 
 const defaultOptions = {
     title: localizeMessage('main.notifications.download.complete.title', 'Download Complete'),

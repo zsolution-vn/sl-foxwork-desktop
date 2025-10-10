@@ -516,7 +516,7 @@ export function createTemplate(config: Config, updateManager: UpdateManager) {
     const academyLink = config.academyLink;
     if (academyLink) {
         submenu.push({
-            label: localizeMessage('main.menus.app.help.academy', 'Mattermost Academy'),
+            label: localizeMessage('main.menus.app.help.academy', 'FoxWork Academy'),
             click() {
                 shell.openExternal(academyLink);
             },

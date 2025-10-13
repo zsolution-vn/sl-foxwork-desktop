@@ -158,8 +158,7 @@
   "win": {
     "target": [
       "nsis",
-      "zip",
-      "msi"
+      "zip"
     ],
     "extraFiles": [
       {
@@ -174,7 +173,9 @@
       }
     ],
     "signDlls": true,
-    "publisherName": "CN=\"FoxWork Team\", O=\"FoxWork Team\", L=Palo Alto, S=California, C=US"
+    "publisherName": "CN=\"FoxWork Team\", O=\"FoxWork Team\", L=Palo Alto, S=California, C=US",
+    "certificateFile": "C:\\foxwork-code-sign.pfx",
+    "certificatePassword": "foxia@2025"
   },
   "nsis": {
     "artifactName": "${version}/${name}-setup-${version}-win.${ext}",
